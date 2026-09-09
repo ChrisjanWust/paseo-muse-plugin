@@ -507,3 +507,21 @@ test("turn/retracted settles the turn as canceled and releases its admission slo
   assert.equal(next.result.type, "turn");
   await h.terminal(h.events.indexOf(next));
 });
+test("unsupported question settled before cancel lands does not fail the session", async (t) => {
+  const h = await setup(t);
+  await h.open();
+  const after = h.events.length;
+  await h.prompt("question-race", "question");
+  const turn = await h.terminal(after);
+  assert.equal(turn.state, "completed");
+  assert(
+    h.events.some(
+      (e) => e.type === "session.notice" && e.notice.id.startsWith("question:"),
+    ),
+  );
+  assert(!h.events.some((e) => e.type === "session.runtime_failed"));
+  const cancels = (await h.audit()).filter(
+    (f) => f.method === "userInput/cancel",
+  );
+  assert.equal(cancels.length, 1);
+});

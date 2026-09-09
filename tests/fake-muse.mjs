@@ -12,6 +12,7 @@ let session,
   seq = 0,
   active,
   approval,
+  question,
   queued = [];
 const timers = new Set();
 const later = (fn, ms) => {
@@ -119,6 +120,29 @@ function run(p) {
     return;
   }
   if (text.includes("slow")) return;
+  if (text.includes("question")) {
+    // Structured question the provider cannot render; it will send
+    // userInput/cancel, which this fixture rejects as already settled.
+    question = {
+      userInputId: randomUUID(),
+      itemId: randomUUID(),
+      toolCallId: "call-question",
+      toolName: "askUser",
+      turnId,
+      autoResolutionMs: 10,
+      questions: [
+        {
+          id: "q1",
+          header: "Pick one",
+          question: "Which option?",
+          options: [{ label: "A" }, { label: "B" }],
+          selection: { mode: "single" },
+        },
+      ],
+    };
+    event("userInput/requested", question);
+    return;
+  }
   if (text.includes("approval")) {
     approval = {
       approvalId: randomUUID(),
@@ -457,6 +481,24 @@ rl.on("line", (line) => {
         finish(approval.turnId);
         approval = undefined;
       }, 40);
+      return;
+    }
+    case "userInput/cancel": {
+      // Race: the question settled (timed out) before the cancel arrived.
+      error(req, "Already settled", "userInputAlreadySettled", -32062);
+      if (question && p.userInputId === question.userInputId) {
+        const q = question;
+        question = undefined;
+        event("userInput/settled", {
+          userInputId: q.userInputId,
+          outcome: "timedOut",
+          answers: [],
+          clarification: null,
+          decidedByCommandId: null,
+          reason: "auto-resolved by fixture",
+        });
+        finish(q.turnId);
+      }
       return;
     }
     case "session/setModel":

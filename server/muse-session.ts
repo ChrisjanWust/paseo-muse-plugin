@@ -392,7 +392,13 @@ export class MuseSession {
                 "Paseo Muse provider does not support structured elicitation yet",
             }),
             "Cancel unsupported question",
-          ).catch((e) => this.fail(e));
+          ).catch((e) => {
+            // Muse may settle or time out the question before our cancel
+            // lands (e.g. userInputAlreadySettled / userInputNotFound). That
+            // is a benign race, not a session failure; io() already fails the
+            // session for non-MSP transport errors and timeouts.
+            if (!(e instanceof MspError)) this.fail(e);
+          });
         }
     } catch (error) {
       this.fail(error);
