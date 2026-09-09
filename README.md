@@ -4,15 +4,17 @@ A native, server-only Paseo v0.8 provider using `@muse-code/sdk` and `muse serve
 
 ## Install
 
-Requires Node 20+, **Paseo 0.8.x**, and an authenticated Muse installation on the daemon machine:
+Requires Node 20+, **Paseo 0.8.x** (tested with `0.8.0-beta.1`), and an authenticated Muse installation on the daemon machine. From this repository's directory:
 
 ```sh
 muse login
-npm ci
-paseo plugin add /absolute/path/to/paseo-muse-plugin
+npm ci --omit=dev --ignore-scripts
+paseo plugin install "$PWD"
+paseo plugin ls --json
+paseo provider models muse --json
 ```
 
-Enable **Settings → Plugins → Enable plugins** in Paseo if it is off. Select **Meta Muse Code** when creating an agent. Alternatively:
+Enable **Settings → Plugins → Enable plugins** in Paseo if it is off. Confirm `paseo-muse` is enabled and `running`, and that the model list is nonempty. Select **Meta Muse Code** when creating an agent. Alternatively:
 
 ```sh
 paseo run 'Explain this repository' \
@@ -22,6 +24,8 @@ paseo run 'Explain this repository' \
 For a Git installation, the manifest runs `npm ci --omit=dev --ignore-scripts`. Paseo supplies its plugin SDK and Zod at runtime. Muse remains a separate executable. The SVG is a simple plugin icon, not Meta branding.
 
 Authentication stays with Muse. `META_API_KEY` may be supplied through the daemon/session environment; do not put credentials in plugin settings, the manifest, or provider options. Each session gets a fresh host with `{...process.env, ...session.env}`.
+
+A directory install uses that directory as its source; keep the checkout and its runtime dependencies available. Run these commands on the daemon machine. The daemon must be able to find `muse` in its own environment, even if your interactive shell can find it.
 
 ## Supported behavior
 
@@ -87,8 +91,8 @@ Pinned and tested on September 8, 2026:
 - MSP fingerprint: `sha256:03312c213efd14277a0e0a102f70adeae497a469ca4edf7242f479953ed758b7`
 
 ```sh
-npm run typecheck
-npm test                    # No model/network: real SDK + fake MSP subprocesses
+npm ci --ignore-scripts     # Include development dependencies for these checks
+npm run check              # Typecheck, 17 contract/schema tests, formatting
 npm run test:schema         # Installed Muse's exported fingerprint
 npm run test:live           # Real model, tools, config, persistence, replay
 npm run test:live:controls  # Real images, allow/deny, queue, steer, stop
@@ -110,3 +114,11 @@ The image schema fixture is extracted from `muse schema generate-json-schema`. T
 - [Meta Muse SDK source and protocol documentation](https://github.com/meta-models/muse-code-sdk)
 
 The installed package declarations and the host-exported schema are the implementation's type authority. The starting design's illustrative field names were adjusted to those contracts.
+
+## Maintaining this checkout
+
+Commit `package-lock.json` and `.npmrc` together with dependency changes. SDK versions are exact pins; do not update them independently of the compatibility fixture and host-schema check. `npm run check` needs no Muse login, model calls, or running Paseo daemon. The live commands above provide the release checks.
+
+Before using a changed version, run the checks, inspect `git diff --check`, and commit the tested files. Check installation from a separate checkout with only production dependencies to catch accidental dependencies on development packages. Plugin reload in the tested Paseo beta has the existing-agent limitation described above; schedule it when you can also restart Paseo if necessary.
+
+This repository is a private, source-installed plugin. Publishing to npm is disabled by `private: true`; no remote, registry publication, deployment, or infrastructure configuration is required for local usage. `HANDOVER.md` and `.tmp/` hold local operational notes and test diagnostics and are intentionally ignored by Git.
