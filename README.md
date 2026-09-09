@@ -23,6 +23,12 @@ paseo run 'Explain this repository' \
 
 For a Git installation, the manifest runs `npm ci --omit=dev --ignore-scripts`. Paseo supplies its plugin SDK and Zod at runtime. Muse remains a separate executable. The SVG is a simple plugin icon, not Meta branding.
 
+Install directly from the public repository:
+
+```sh
+paseo plugin install https://github.com/ChrisjanWust/paseo-muse-plugin.git
+```
+
 Authentication stays with Muse. `META_API_KEY` may be supplied through the daemon/session environment; do not put credentials in plugin settings, the manifest, or provider options. Each session gets a fresh host with `{...process.env, ...session.env}`.
 
 A directory install uses that directory as its source; keep the checkout and its runtime dependencies available. Run these commands on the daemon machine. The daemon must be able to find `muse` in its own environment, even if your interactive shell can find it.
@@ -121,4 +127,4 @@ Commit `package-lock.json` and `.npmrc` together with dependency changes. SDK ve
 
 Before using a changed version, run the checks, inspect `git diff --check`, and commit the tested files. Check installation from a separate checkout with only production dependencies to catch accidental dependencies on development packages. Plugin reload in the tested Paseo beta has the existing-agent limitation described above; schedule it when you can also restart Paseo if necessary.
 
-This repository is a private, source-installed plugin. Publishing to npm is disabled by `private: true`; no remote, registry publication, deployment, or infrastructure configuration is required for local usage. `HANDOVER.md` and `.tmp/` hold local operational notes and test diagnostics and are intentionally ignored by Git.
+This is a source-installed Paseo plugin. Publishing to npm is disabled by `private: true`; registry publication, deployment, and infrastructure configuration are not required for local usage. `HANDOVER.md` and `.tmp/` hold local operational notes and test diagnostics and are intentionally ignored by Git.
