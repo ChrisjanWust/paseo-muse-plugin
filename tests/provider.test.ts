@@ -551,3 +551,64 @@ test("duplicate clientMessageId re-emits the remembered prompt_result without re
     1,
   );
 });
+test("resume settles a turn orphaned by a dead host without a Paseo start and keeps the session usable", async (t) => {
+  const h = await setup(t);
+  await h.open();
+  const slow = await h.prompt("slow", "slow");
+  assert.equal(slow.result.type, "turn");
+  const slowTurn = (slow.result as { turnId: string }).turnId;
+  await h.wait(
+    (e): e is Extract<ProviderEvent, { type: "session.turn" }> =>
+      e.type === "session.turn" &&
+      e.turnId === slowTurn &&
+      e.state === "started",
+  );
+  const opening = h.events.find(
+    (e): e is Extract<ProviderEvent, { type: "session.opened" }> =>
+      e.type === "session.opened",
+  )!;
+  // Closing while the slow turn runs leaves turn/started with no terminal in
+  // the durable log, exactly as a host that died mid-turn would.
+  await h.request({
+    type: "session.close",
+    requestId: "close",
+    sessionId: "s",
+  });
+  const after = h.events.length;
+  await h.request({
+    type: "session.open",
+    requestId: "resume",
+    sessionId: "s",
+    config: h.config,
+    history: "replay",
+    persistence: opening.persistence,
+  });
+  const replay = h.events.slice(after);
+  assert(!replay.some((e) => e.type === "session.turn"));
+  const openedAt = replay.findIndex((e) => e.type === "session.opened");
+  assert(openedAt >= 0);
+  const orphaned = replay.findIndex(
+    (e) =>
+      e.type === "session.notice" &&
+      e.notice.id === `orphaned-turn:${slowTurn}`,
+  );
+  assert(orphaned > openedAt);
+  // The orphan must not block admission of fresh work on the new host.
+  const before = h.events.length;
+  const next = await h.prompt("after-orphan", "hello");
+  assert.equal(next.result.type, "turn");
+  const nextTurn = (next.result as { turnId: string }).turnId;
+  const terminal = await h.wait(
+    (e): e is Extract<ProviderEvent, { type: "session.turn" }> =>
+      e.type === "session.turn" &&
+      e.turnId === nextTurn &&
+      e.state !== "started",
+    before,
+  );
+  assert.equal(terminal.state, "completed");
+  assert(
+    !h.events
+      .slice(after)
+      .some((e) => e.type === "session.turn" && e.turnId === slowTurn),
+  );
+});

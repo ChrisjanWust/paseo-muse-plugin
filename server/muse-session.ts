@@ -48,6 +48,10 @@ export class MuseSession {
   private scheduled?: ReturnType<typeof setTimeout>;
   private snapshots = new Map<string, string>();
   private turnStates = new Map<string, TurnState>();
+  // Turns left "running" in the durable log by a Muse host that died mid-turn.
+  // A fresh host never resumes them, so they are settled locally without a
+  // Paseo start and excluded from steer/interrupt targeting.
+  private orphanedTurns = new Set<string>();
   private commandMessages = new Map<string, string>();
   private admissions = 0;
   private starts = new Set<string>();
@@ -197,6 +201,13 @@ export class MuseSession {
             turn.turnId,
             this.terminal(String(turn.terminal)),
           );
+        else {
+          // Orphaned by the previous host: no terminal will ever arrive, so
+          // settle it in Paseo terms without emitting a start. The non-started
+          // state makes turn() ignore any later projection of this turn.
+          this.turnStates.set(turn.turnId, "failed");
+          this.orphanedTurns.add(turn.turnId);
+        }
       if (this.launch.model && this.launch.model !== this.config.model)
         await this.configureNative({ model: this.launch.model });
       if (this.launch.mode && this.launch.mode !== this.config.mode)
@@ -248,6 +259,11 @@ export class MuseSession {
       this.notice(
         "schema",
         "MSP schema differs from the tested version. Compatibility is unverified.",
+      );
+    for (const turnId of this.orphanedTurns)
+      this.notice(
+        `orphaned-turn:${turnId}`,
+        "A previous Muse host stopped while this turn was running; it was not resumed. Send a new message to continue.",
       );
     this.emit({ type: "session.ready", requestId, sessionId: this.id });
   }
@@ -535,7 +551,8 @@ export class MuseSession {
       let result: { turnId: string };
       if (prompt.delivery === "steer") {
         const active = this.session.fold.activeTurnId;
-        if (!active) throw new Error("There is no active Muse turn to steer");
+        if (!active || this.orphanedTurns.has(active))
+          throw new Error("There is no active Muse turn to steer");
         result = await this.io(
           command(
             this.host.connection,
@@ -613,7 +630,8 @@ export class MuseSession {
         }
       }
     const active = this.session.fold.activeTurnId;
-    if (active)
+    // An orphaned turn is not executing anywhere; interrupting it is a no-op.
+    if (active && !this.orphanedTurns.has(active))
       await this.io(
         command(this.host.connection, "turn/interrupt", {
           sessionId: this.native.sessionId,
