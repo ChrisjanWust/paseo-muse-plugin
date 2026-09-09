@@ -49,7 +49,6 @@ export class MuseSession {
   private snapshots = new Map<string, string>();
   private turnStates = new Map<string, TurnState>();
   private commandMessages = new Map<string, string>();
-  private promptIds = new Set<string>();
   private admissions = 0;
   private starts = new Set<string>();
   private admittedTurns = new Set<string>();
@@ -500,8 +499,6 @@ export class MuseSession {
   async prompt(prompt: ProviderPrompt) {
     if (this.closed || this.opening)
       throw new Error("Muse session is not ready");
-    if (this.promptIds.has(prompt.clientMessageId)) return;
-    this.promptIds.add(prompt.clientMessageId);
     this.admissions++;
     try {
       // Include commands still awaiting acknowledgement; concurrent sends all

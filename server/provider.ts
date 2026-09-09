@@ -19,6 +19,11 @@ import { spawnHost, query, deadline } from "./msp.js";
 import { modelCatalog } from "./mapping.js";
 import { MuseSession, providerError } from "./muse-session.js";
 
+type PromptResult = Extract<
+  ProviderEvent,
+  { type: "session.prompt_result" }
+>["result"];
+const MAX_REMEMBERED_PROMPTS = 512;
 export const SUPPORTED_CAPABILITIES = [
   "prompt.message",
   "prompt.image",
@@ -72,7 +77,14 @@ export class MuseProviderConnection implements ProviderConnection {
   private opening = new Map<string, Promise<void>>();
   private tasks = new Set<Promise<void>>();
   private closed = false;
-  private promptIds = new Set<string>();
+  // Prompt idempotency: key -> last emitted prompt_result payload, or
+  // undefined while the original send is still in flight. Paseo awaits exactly
+  // one prompt_result per send, so a client retry of the same clientMessageId
+  // must settle again with the remembered result instead of being dropped.
+  private prompts = new Map<
+    string,
+    { sessionId: string; result?: PromptResult }
+  >();
   private closing?: Promise<void>;
   private options: MuseOptions;
   constructor(
@@ -90,12 +102,24 @@ export class MuseProviderConnection implements ProviderConnection {
       this.listeners.delete(listener);
     };
   }
+  private static promptKey(sessionId: string, clientMessageId: string) {
+    return JSON.stringify([sessionId, clientMessageId]);
+  }
   private emit = (event: ProviderEvent) => {
-    if (
-      event.type === "session.closed" &&
-      this.sessions.delete(event.sessionId)
-    )
-      this.budget.active--;
+    if (event.type === "session.closed") {
+      if (this.sessions.delete(event.sessionId)) this.budget.active--;
+      // Paseo mints a fresh provider sessionId per open, so no retry for this
+      // session can arrive after it closed; forget its prompt results.
+      for (const [key, entry] of this.prompts)
+        if (entry.sessionId === event.sessionId) this.prompts.delete(key);
+    } else if (event.type === "session.prompt_result") {
+      const key = MuseProviderConnection.promptKey(
+        event.sessionId,
+        event.clientMessageId,
+      );
+      const entry = this.prompts.get(key);
+      if (entry) entry.result = event.result;
+    }
     for (const listener of this.listeners)
       try {
         listener(event);
@@ -106,12 +130,26 @@ export class MuseProviderConnection implements ProviderConnection {
   async send(input: ProviderInput): Promise<void> {
     if (this.closed) throw new Error("Muse provider is closed");
     if (input.type === "session.prompt") {
-      const key = JSON.stringify([
+      const key = MuseProviderConnection.promptKey(
         input.sessionId,
         input.prompt.clientMessageId,
-      ]);
-      if (this.promptIds.has(key)) return;
-      this.promptIds.add(key);
+      );
+      const known = this.prompts.get(key);
+      if (known) {
+        // Idempotent retry: never execute twice, but always settle. If the
+        // original is still in flight it will emit exactly one result itself.
+        if (known.result)
+          this.emit({
+            type: "session.prompt_result",
+            sessionId: input.sessionId,
+            clientMessageId: input.prompt.clientMessageId,
+            result: known.result,
+          });
+        return;
+      }
+      if (this.prompts.size >= MAX_REMEMBERED_PROMPTS)
+        this.prompts.delete(this.prompts.keys().next().value!);
+      this.prompts.set(key, { sessionId: input.sessionId });
     }
     // Dispatch immediately; don't keep the plugin IPC intake blocked on a model,
     // permission, or startup. Every outcome uses its provider event correlation.

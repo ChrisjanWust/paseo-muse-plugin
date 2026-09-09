@@ -122,10 +122,14 @@ test("real SDK subprocess: catalog, streamed snapshots, exact correlation, and l
       input: { type: "message", content: [{ type: "text", text: "hello" }] },
     },
   });
-  assert.equal(
-    h.events.filter((e) => e.type === "session.prompt_result").length,
-    1,
+  // A retried clientMessageId is idempotent: it settles again with the same
+  // result instead of being silently dropped (which would hang the daemon).
+  const results = h.events.filter(
+    (e): e is Extract<ProviderEvent, { type: "session.prompt_result" }> =>
+      e.type === "session.prompt_result",
   );
+  assert.equal(results.length, 2);
+  assert.deepEqual(results[1].result, results[0].result);
   const frames = await h.audit();
   const actualDir = await realpath(h.dir);
   assert(frames.every((f) => f.envProbe === "overlay" && f.cwd === actualDir));
@@ -524,4 +528,26 @@ test("unsupported question settled before cancel lands does not fail the session
     (f) => f.method === "userInput/cancel",
   );
   assert.equal(cancels.length, 1);
+});
+test("duplicate clientMessageId re-emits the remembered prompt_result without re-executing", async (t) => {
+  const h = await setup(t);
+  await h.open();
+  const first = await h.prompt("dup", "hello");
+  assert.equal(first.result.type, "turn");
+  const turnId = (first.result as { turnId: string }).turnId;
+  await h.terminal();
+  const second = await h.prompt("dup", "hello");
+  assert.equal(second.result.type, "turn");
+  assert.equal((second.result as { turnId: string }).turnId, turnId);
+  assert.notEqual(second, first);
+  assert.equal(
+    h.events.filter(
+      (e) => e.type === "session.prompt_result" && e.clientMessageId === "dup",
+    ).length,
+    2,
+  );
+  assert.equal(
+    (await h.audit()).filter((f) => f.method === "turn/start").length,
+    1,
+  );
 });
