@@ -490,3 +490,20 @@ test("native MCP default shows a notice and still permits a strict session overr
   const start = (await h.audit()).find((f) => f.method === "session/start");
   assert(!("mcpServers" in start.params));
 });
+test("turn/retracted settles the turn as canceled and releases its admission slot", async (t) => {
+  const h = await setup(t);
+  await h.open();
+  const after = h.events.length;
+  const retracted = await h.prompt("retract", "retract");
+  assert.equal(retracted.result.type, "turn");
+  const turnId = (retracted.result as { turnId: string }).turnId;
+  const terminal = await h.wait(
+    (e): e is Extract<ProviderEvent, { type: "session.turn" }> =>
+      e.type === "session.turn" && e.turnId === turnId && e.state !== "started",
+    after,
+  );
+  assert.equal(terminal.state, "canceled");
+  const next = await h.prompt("after-retract", "hello");
+  assert.equal(next.result.type, "turn");
+  await h.terminal(h.events.indexOf(next));
+});

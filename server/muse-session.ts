@@ -461,7 +461,8 @@ export class MuseSession {
       )
         this.turn(turn.turnId, "started");
       if (turn.state === "running") this.turn(turn.turnId, "started");
-      else if (turn.state === "unqueued") this.turn(turn.turnId, "canceled");
+      else if (turn.state === "unqueued" || turn.state === "retracted")
+        this.turn(turn.turnId, "canceled");
       else if (turn.state === "settled")
         this.turn(
           turn.turnId,

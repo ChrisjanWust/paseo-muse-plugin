@@ -105,15 +105,14 @@ function run(p) {
   active = turnId;
   session.activeTurnId = turnId;
   event("turn/started", { turnId, commandId: p.commandId });
-  event("item/completed", {
-    item: item(
-      turnId,
-      "userMessage",
-      p.displayText ?? p.input.map((i) => i.text ?? "[Image]").join(""),
-      "completed",
-      { commandId: p.commandId },
-    ),
-  });
+  const user = item(
+    turnId,
+    "userMessage",
+    p.displayText ?? p.input.map((i) => i.text ?? "[Image]").join(""),
+    "completed",
+    { commandId: p.commandId },
+  );
+  event("item/completed", { item: user });
   const text = p.input.map((i) => i.text ?? "").join("");
   if (text.includes("crash")) {
     later(() => process.exit(2), 40);
@@ -157,6 +156,20 @@ function run(p) {
         params: e.params,
       });
     } else event("approval/requested", approval);
+    return;
+  }
+  if (text.includes("retract")) {
+    // Interrupt-paired retract accepted before any assistant output: no
+    // turn/completed ever follows (INV-006), only turn/retracted.
+    later(() => {
+      event("turn/retracted", { turnId, commandId: p.commandId });
+      event("item/updated", {
+        item: { ...user, retracted: true, revision: 2 },
+      });
+      active = undefined;
+      session.activeTurnId = null;
+      save();
+    }, 20);
     return;
   }
   const a = item(turnId, "agentMessage", "", "inProgress");
