@@ -5,14 +5,21 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import type { ProviderEvent } from "@getpaseo/plugin/server/provider";
 import { harness, sessionConfig } from "./harness.js";
-import { createMuseProvider } from "../server/provider.js";
+import {
+  createMuseProvider,
+  type ProviderDefaults,
+} from "../server/provider.js";
 
-async function setup(t: { after(fn: () => Promise<void>): void }) {
+async function setup(
+  t: { after(fn: () => Promise<void>): void },
+  defaults: ProviderDefaults = {},
+) {
   const dir = await mkdtemp(join(tmpdir(), "paseo-muse-test-"));
   const h = await harness({
     museBin: resolve("tests/fake-muse.mjs"),
     requestTimeoutMs: 2000,
     shutdownTimeoutMs: 200,
+    ...defaults,
   });
   t.after(async () => {
     await h.close();
@@ -422,4 +429,64 @@ test("startup deadline closes a hung host and makes its slot reusable", async (t
     /timed out/,
   );
   await h.open();
+});
+
+test("concurrent prompt admissions cannot exceed the pending turn limit", async (t) => {
+  const h = await setup(t);
+  await h.open();
+  const results = await Promise.all(
+    Array.from({ length: 33 }, (_, i) => h.prompt(`burst-${i}`, "slow")),
+  );
+  assert.equal(results.filter((r) => r.result.type === "turn").length, 32);
+  const rejected = results.filter((r) => r.result.type === "failed");
+  assert.equal(rejected.length, 1);
+  assert.match(
+    rejected[0]!.result.type === "failed"
+      ? rejected[0]!.result.error.message
+      : "",
+    /pending turn limit/,
+  );
+  assert.equal(
+    (await h.audit()).filter((f) => f.method === "turn/start").length,
+    32,
+  );
+});
+
+test("native MCP default shows a notice and still permits a strict session override", async (t) => {
+  const h = await setup(t, {
+    unsupportedMcpStrategy: "use-muse-native-config",
+  });
+  const config = {
+    ...h.config,
+    mcpServers: {
+      paseo: { type: "stdio" as const, command: "unused-host-tool" },
+    },
+  };
+  await assert.rejects(
+    h.request({
+      type: "session.open",
+      requestId: "strict-mcp",
+      sessionId: "s",
+      config: {
+        ...config,
+        providerOptions: { unsupportedMcpStrategy: "reject" },
+      },
+      history: "skip",
+    }),
+    /cannot inject Paseo MCP servers/,
+  );
+  await h.request({
+    type: "session.open",
+    requestId: "native-mcp",
+    sessionId: "s",
+    config,
+    history: "skip",
+  });
+  assert(
+    h.events.some(
+      (e) => e.type === "session.notice" && e.notice.id === "native-mcp",
+    ),
+  );
+  const start = (await h.audit()).find((f) => f.method === "session/start");
+  assert(!("mcpServers" in start.params));
 });

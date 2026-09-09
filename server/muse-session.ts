@@ -497,7 +497,9 @@ export class MuseSession {
     this.promptIds.add(prompt.clientMessageId);
     this.admissions++;
     try {
-      if (this.admittedTurns.size >= 32)
+      // Include commands still awaiting acknowledgement; concurrent sends all
+      // enter here before any of their turn IDs have reached admittedTurns.
+      if (this.admittedTurns.size + this.admissions > 32)
         throw new Error("Muse session has reached its pending turn limit (32)");
       if (prompt.input.type !== "message" || prompt.outputSchema !== undefined)
         throw new Error(
