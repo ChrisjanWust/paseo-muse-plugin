@@ -63,7 +63,6 @@ Advanced callers may pass `config.providerOptions` when creating an agent:
 {
   "museBin": "/absolute/path/to/muse",
   "serveArgs": [],
-  "schemaMismatch": "fail",
   "systemPromptStrategy": "reject",
   "unsupportedMcpStrategy": "use-muse-native-config",
   "requestTimeoutMs": 30000,
@@ -76,7 +75,6 @@ Configuration choices:
 - `systemPromptStrategy: "prepend-user-context"` supplies Paseo's prompt as **user-level context on each submission**. It does not change Muse's system instructions.
 - `unsupportedMcpStrategy: "use-muse-native-config"` permits opening with Paseo MCP configuration present, while displaying a notice that those servers were not injected.
 - `unsupportedMcpStrategy: "reject"` rejects any supplied Paseo MCP configuration. The adapter library retains this strict default; the plugin entry point explicitly selects native configuration.
-- `schemaMismatch: "warn"` permits an untested fingerprint and displays a notice. The default is to fail.
 
 Model, mode, and thinking are normal Paseo composer controls, not provider options. `museBin` in session options only affects that session; to change discovery as well, set the `createMuseProvider({museBin: ...})` default in `index.server.ts`.
 
@@ -109,7 +107,7 @@ Live tests use your existing Muse authentication and consume model tokens. The c
 
 `test:paseo` starts an isolated beta daemon with its own temporary home, port, and workspace; it disables MCP injection, relay, and speech downloads. It checks plugin compilation/loading, live catalog, prompts/timeline, durable reload, continuation, mode/thinking controls, interruption, plugin reload and removal during active work, and the beta reload workaround. It stops the daemon afterward. Diagnostic logs and a result summary go into ignored `.tmp/` files.
 
-The credential-free CI lane typechecks the pinned SDKs and runs contract tests. Releases additionally require the host-schema and live tests above. The schema gate fails on a changed fingerprint; review and adapt the generated types before repinning.
+The credential-free CI lane typechecks the pinned SDKs and runs contract tests. Releases additionally require the host-schema and live tests above. The adapter never checks the MSP schema fingerprint at runtime: any Muse host that completes the handshake is accepted, since the protocol evolves additively. `test:schema` is a development aid that flags when the installed Muse has moved past the pinned fixture so the generated types can be reviewed.
 
 The image schema fixture is extracted from `muse schema generate-json-schema`. The text transcript fixture was captured from a real test turn and contains only synthetic test content. These complement fixtures for pre-ack events, delayed terminals, stale snapshots, queued launch failure, approvals, transport death, admission backpressure, and gap replay.
 

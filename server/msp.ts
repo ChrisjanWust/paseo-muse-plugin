@@ -1,13 +1,11 @@
 import {
   spawnMspConnection,
-  EXPECTED_SCHEMA_FINGERPRINT,
   type Connection,
   type SpawnedMspConnection,
 } from "@muse-code/sdk";
 import type * as MSP from "@muse-code/sdk/dist/src/msp.js";
 import type { MuseOptions } from "./config.js";
 
-export { EXPECTED_SCHEMA_FINGERPRINT };
 export type { MSP };
 type Commands = {
   "session/start": [MSP.SessionStartParams, MSP.SessionStartResult];
@@ -104,15 +102,6 @@ export async function spawnHost(
       options.requestTimeoutMs,
       "Muse initialize",
     );
-    if (
-      host.initializeResult.schema.fingerprint !==
-        EXPECTED_SCHEMA_FINGERPRINT &&
-      options.schemaMismatch === "fail"
-    ) {
-      throw new Error(
-        `Unsupported MSP schema ${host.initializeResult.schema.fingerprint}; expected ${EXPECTED_SCHEMA_FINGERPRINT}`,
-      );
-    }
     if (
       persist &&
       host.initializeResult.sessionDurability &&

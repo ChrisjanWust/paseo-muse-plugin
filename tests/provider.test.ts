@@ -339,7 +339,7 @@ test("host death settles active work; close while opening cannot leak a host", a
   await other.close();
   assert(!other.events.some((e) => e.type === "session.ready"));
 });
-test("unsupported launch semantics, image validation and schema drift fail explicitly", async (t) => {
+test("unsupported launch semantics and image validation fail explicitly", async (t) => {
   const h = await setup(t);
   await assert.rejects(
     h.request({
@@ -350,16 +350,6 @@ test("unsupported launch semantics, image validation and schema drift fail expli
       history: "skip",
     }),
     /systemPrompt/,
-  );
-  await assert.rejects(
-    h.request({
-      type: "session.open",
-      requestId: "schema",
-      sessionId: "s",
-      config: { ...h.config, env: { FAKE_MUSE_FINGERPRINT: "changed" } },
-      history: "skip",
-    }),
-    /Unsupported MSP schema/,
   );
   await h.open();
   const after = h.events.length;
@@ -710,4 +700,20 @@ test("steer with clearPendingPermissions denies the blocking approval before ste
   assert.equal(steers.length, 1);
   assert.equal(frames[decides[0]].params.choiceId, "deny-once");
   assert(decides[0] < steers[0]);
+});
+test("a Muse host with an unknown schema fingerprint opens normally", async (t) => {
+  const h = await setup(t);
+  await h.request({
+    type: "session.open",
+    requestId: "drift",
+    sessionId: "s",
+    config: { ...h.config, env: { FAKE_MUSE_FINGERPRINT: "sha256:other" } },
+    history: "skip",
+  });
+  assert(h.events.some((e) => e.type === "session.ready"));
+  assert(
+    !h.events.some(
+      (e) => e.type === "session.notice" && e.notice.id === "schema",
+    ),
+  );
 });

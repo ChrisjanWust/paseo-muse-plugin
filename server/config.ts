@@ -33,7 +33,6 @@ export const optionsSchema = z
   .object({
     museBin: z.string().min(1).default("muse"),
     serveArgs: z.array(z.string()).default([]),
-    schemaMismatch: z.enum(["fail", "warn"]).default("fail"),
     systemPromptStrategy: z
       .enum(["reject", "prepend-user-context"])
       .default("reject"),

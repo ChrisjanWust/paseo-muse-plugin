@@ -13,13 +13,7 @@ import type {
   ProviderPersistence,
   ProviderPermissionResponse,
 } from "@getpaseo/plugin/server/provider";
-import {
-  command,
-  query,
-  deadline,
-  EXPECTED_SCHEMA_FINGERPRINT,
-  type MSP,
-} from "./msp.js";
+import { command, query, deadline, type MSP } from "./msp.js";
 import {
   modeSchema,
   modes,
@@ -127,13 +121,6 @@ export class MuseSession {
     const saved = persistence
       ? persistenceSchema.parse(persistence)
       : undefined;
-    if (
-      saved &&
-      saved.data.schemaFingerprint !==
-        this.host.initializeResult.schema.fingerprint &&
-      this.options.schemaMismatch === "fail"
-    )
-      throw new Error("Persisted session uses a different MSP schema");
     const result = saved
       ? await this.io(
           command(this.host.connection, "session/resume", {
@@ -251,14 +238,6 @@ export class MuseSession {
       this.notice(
         "native-mcp",
         "Paseo MCP servers were not injected. This session uses Muse’s native MCP configuration.",
-      );
-    if (
-      this.host.initializeResult.schema.fingerprint !==
-      EXPECTED_SCHEMA_FINGERPRINT
-    )
-      this.notice(
-        "schema",
-        "MSP schema differs from the tested version. Compatibility is unverified.",
       );
     for (const turnId of this.orphanedTurns)
       this.notice(
