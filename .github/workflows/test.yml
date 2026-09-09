@@ -1,0 +1,16 @@
+name: Test provider
+on: [push, pull_request]
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run typecheck
+      - run: npm test
+      # Release machines with Muse installed must also run npm run test:schema
+      # and npm run test:live; no credentials are needed for this contract lane.

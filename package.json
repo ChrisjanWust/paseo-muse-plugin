@@ -1,0 +1,31 @@
+{
+  "name": "paseo-muse",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test --test-timeout=30000 tests/*.test.ts",
+    "test:live": "tsx scripts/live.ts",
+    "test:schema": "tsx scripts/check-schema.ts",
+    "test:live:controls": "tsx scripts/live-controls.ts",
+    "test:paseo": "tsx scripts/paseo-e2e.ts",
+    "format": "prettier --write index.server.ts \"server/**/*.ts\" \"scripts/**/*.ts\" \"tests/**/*.ts\" \"tests/*.mjs\" \"*.json\" README.md",
+    "format:check": "prettier --check index.server.ts \"server/**/*.ts\" \"scripts/**/*.ts\" \"tests/**/*.ts\" \"tests/*.mjs\" \"*.json\" README.md"
+  },
+  "dependencies": {
+    "@muse-code/sdk": "0.1.1"
+  },
+  "devDependencies": {
+    "@getpaseo/plugin": "0.8.0-beta.1",
+    "@types/node": "24.3.0",
+    "ajv": "8.20.0",
+    "prettier": "3.9.6",
+    "tsx": "4.20.5",
+    "typescript": "5.9.3",
+    "zod": "4.4.3"
+  }
+}

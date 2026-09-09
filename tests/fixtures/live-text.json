@@ -1,0 +1,160 @@
+[
+  {
+    "jsonrpc": "2.0",
+    "method": "turn/started",
+    "params": {
+      "sessionId": "01a08391-a89f-7471-8b10-ce17a9272788",
+      "viewCursor": "v:01a08391-a89f-7471-8b10-ce17a9272788:2",
+      "sourceRange": {
+        "stream": {
+          "kind": "session",
+          "id": "01a08391-a89f-7471-8b10-ce17a9272788"
+        },
+        "first": {
+          "id": "cd40128a-272d-4045-baa6-8e9a1475bd65",
+          "sequence": 12
+        },
+        "last": {
+          "id": "cd40128a-272d-4045-baa6-8e9a1475bd65",
+          "sequence": 12
+        }
+      },
+      "turnId": "01a08391-a8e9-7000-8c48-1daad726c252",
+      "commandId": "01a08391-a8e9-7000-8c48-1daad726c252"
+    },
+    "emittedAtMs": 1788913756423
+  },
+  {
+    "jsonrpc": "2.0",
+    "method": "item/completed",
+    "params": {
+      "sessionId": "01a08391-a89f-7471-8b10-ce17a9272788",
+      "viewCursor": "v:01a08391-a89f-7471-8b10-ce17a9272788:3",
+      "sourceRange": {
+        "stream": {
+          "kind": "session",
+          "id": "01a08391-a89f-7471-8b10-ce17a9272788"
+        },
+        "first": {
+          "id": "cd40128a-272d-4045-baa6-8e9a1475bd65",
+          "sequence": 12
+        },
+        "last": {
+          "id": "cd40128a-272d-4045-baa6-8e9a1475bd65",
+          "sequence": 12
+        }
+      },
+      "item": {
+        "itemId": "73397871-0ad7-4353-9846-2f8f808f9855",
+        "kind": "userMessage",
+        "turnId": "01a08391-a8e9-7000-8c48-1daad726c252",
+        "revision": 1,
+        "status": "completed",
+        "recordedAt": "2026-09-09T00:29:16.413608Z",
+        "text": "Reply with exactly MUSE_PASEO_OK. Do not use tools.",
+        "commandId": "01a08391-a8e9-7000-8c48-1daad726c252"
+      }
+    },
+    "emittedAtMs": 1788913756423
+  },
+  {
+    "jsonrpc": "2.0",
+    "method": "item/started",
+    "params": {
+      "sessionId": "01a08391-a89f-7471-8b10-ce17a9272788",
+      "viewCursor": "v:01a08391-a89f-7471-8b10-ce17a9272788:4",
+      "item": {
+        "itemId": "686127d0-4ea0-4014-b4e6-e2f751f8f246",
+        "kind": "agentMessage",
+        "turnId": "01a08391-a8e9-7000-8c48-1daad726c252",
+        "revision": 1,
+        "status": "inProgress",
+        "text": ""
+      }
+    },
+    "emittedAtMs": 1788913757639
+  },
+  {
+    "jsonrpc": "2.0",
+    "method": "item/delta",
+    "params": {
+      "sessionId": "01a08391-a89f-7471-8b10-ce17a9272788",
+      "viewCursor": "v:01a08391-a89f-7471-8b10-ce17a9272788:5",
+      "itemId": "686127d0-4ea0-4014-b4e6-e2f751f8f246",
+      "field": "text",
+      "delta": "M"
+    },
+    "emittedAtMs": 1788913757639
+  },
+  {
+    "jsonrpc": "2.0",
+    "method": "item/delta",
+    "params": {
+      "sessionId": "01a08391-a89f-7471-8b10-ce17a9272788",
+      "viewCursor": "v:01a08391-a89f-7471-8b10-ce17a9272788:6",
+      "itemId": "686127d0-4ea0-4014-b4e6-e2f751f8f246",
+      "field": "text",
+      "delta": "USE_PASEO_OK"
+    },
+    "emittedAtMs": 1788913757649
+  },
+  {
+    "jsonrpc": "2.0",
+    "method": "item/completed",
+    "params": {
+      "sessionId": "01a08391-a89f-7471-8b10-ce17a9272788",
+      "viewCursor": "v:01a08391-a89f-7471-8b10-ce17a9272788:7",
+      "sourceRange": {
+        "stream": {
+          "kind": "session",
+          "id": "01a08391-a89f-7471-8b10-ce17a9272788"
+        },
+        "first": {
+          "id": "97fcbc22-3389-4618-9a80-18b48fef0f8e",
+          "sequence": 32
+        },
+        "last": {
+          "id": "97fcbc22-3389-4618-9a80-18b48fef0f8e",
+          "sequence": 32
+        }
+      },
+      "item": {
+        "itemId": "686127d0-4ea0-4014-b4e6-e2f751f8f246",
+        "kind": "agentMessage",
+        "turnId": "01a08391-a8e9-7000-8c48-1daad726c252",
+        "revision": 2,
+        "status": "completed",
+        "recordedAt": "2026-09-09T00:29:17.64979Z",
+        "text": "MUSE_PASEO_OK"
+      }
+    },
+    "emittedAtMs": 1788913757656
+  },
+  {
+    "jsonrpc": "2.0",
+    "method": "turn/completed",
+    "params": {
+      "sessionId": "01a08391-a89f-7471-8b10-ce17a9272788",
+      "viewCursor": "v:01a08391-a89f-7471-8b10-ce17a9272788:10",
+      "sourceRange": {
+        "stream": {
+          "kind": "session",
+          "id": "01a08391-a89f-7471-8b10-ce17a9272788"
+        },
+        "first": {
+          "id": "809f158a-d2d9-4e4c-ad37-152e70c6649a",
+          "sequence": 37
+        },
+        "last": {
+          "id": "809f158a-d2d9-4e4c-ad37-152e70c6649a",
+          "sequence": 37
+        }
+      },
+      "turnId": "01a08391-a8e9-7000-8c48-1daad726c252",
+      "terminal": "completed",
+      "durationMs": 1282,
+      "timeToFirstTokenMs": 1226
+    },
+    "emittedAtMs": 1788913757701
+  }
+]

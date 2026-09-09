@@ -1,0 +1,10 @@
+node_modules/
+.tmp/
+dist/
+*.tsbuildinfo
+.DS_Store
+.env
+.env.*
+!.env.example
+# Local operational history contains machine paths and session identifiers.
+HANDOVER.md

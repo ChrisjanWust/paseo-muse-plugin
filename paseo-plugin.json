@@ -1,0 +1,7 @@
+{
+  "id": "paseo-muse",
+  "requirements": {
+    "paseo": ">=0.8.0-beta.1 <0.9.0"
+  },
+  "build": [["npm", "ci", "--omit=dev", "--ignore-scripts"]]
+}

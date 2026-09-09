@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$ref": "#/$defs/TurnInputPart",
+  "$defs": {
+    "TurnInputPart": {
+      "dependentRequired": {
+        "height": [
+          "width"
+        ],
+        "width": [
+          "height"
+        ]
+      },
+      "properties": {
+        "base64Data": {
+          "type": "string"
+        },
+        "height": {
+          "type": "integer"
+        },
+        "mediaType": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/TurnInputPartType"
+        },
+        "width": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "type": "object"
+    },
+    "TurnInputPartType": {
+      "enum": [
+        "text",
+        "image"
+      ],
+      "type": "string",
+      "x-msp-openness": "closed"
+    }
+  }
+}

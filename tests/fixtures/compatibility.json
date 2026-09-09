@@ -1,0 +1,9 @@
+{
+  "experimental": false,
+  "fingerprint": "sha256:03312c213efd14277a0e0a102f70adeae497a469ca4edf7242f479953ed758b7",
+  "schemaVersion": 1,
+  "museSdk": "0.1.1",
+  "paseoSdk": "0.8.0-beta.1",
+  "museLauncher": "1.0.2-R2040.1",
+  "mspServerVersion": "1.0.3"
+}
