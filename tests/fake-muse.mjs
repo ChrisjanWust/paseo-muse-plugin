@@ -13,6 +13,7 @@ let session,
   active,
   approval,
   question,
+  interrupting,
   queued = [];
 const timers = new Set();
 const later = (fn, ms) => {
@@ -80,6 +81,10 @@ const item = (turnId, kind, text, status = "completed", extra = {}) => ({
   ...extra,
 });
 function finish(turnId, terminal = "completed") {
+  // Whichever settles the turn first wins; a later finish for a turn that is
+  // no longer active (e.g. an interrupt racing a decide) is a no-op.
+  if (active !== turnId) return;
+  interrupting = undefined;
   event("turn/completed", {
     turnId,
     terminal,
@@ -432,6 +437,9 @@ rl.on("line", (line) => {
         status: "accepted",
         turnId: active,
       });
+      // An accepted interrupt is authoritative: a decide whose delayed
+      // completion is still pending must not finish the turn "completed".
+      interrupting = active;
       later(() => {
         if (active) finish(active, "cancelled");
       }, 40);
@@ -478,7 +486,7 @@ rl.on("line", (line) => {
           resolvedBy: "user",
           stageEvidence: [],
         });
-        finish(approval.turnId);
+        if (interrupting !== approval.turnId) finish(approval.turnId);
         approval = undefined;
       }, 40);
       return;

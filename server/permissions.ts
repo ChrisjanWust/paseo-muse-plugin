@@ -3,7 +3,7 @@ import type {
   ProviderPermissionResponse,
 } from "@getpaseo/plugin/server/provider";
 import type { DeepReadonly } from "@muse-code/sdk/dist/src/fold/session-fold.js";
-import type { PendingApproval } from "@muse-code/sdk";
+import { MspError, type PendingApproval } from "@muse-code/sdk";
 import type { MSP } from "./msp.js";
 
 const allowed = new Set([
@@ -12,6 +12,12 @@ const allowed = new Set([
   "approvedPolicyAmendment",
 ]);
 const denied = new Set(["denied", "deniedPolicyAmendment", "abort"]);
+// Muse already settled or restaged the approval between fold and decide.
+const benignDenyRaces = new Set([
+  "approvalNotFound",
+  "approvalAlreadyResolved",
+  "approvalRequirementStale",
+]);
 type Approval = DeepReadonly<MSP.ApprovalRequestParams>;
 export class PermissionBroker {
   private pending = new Map<
@@ -89,17 +95,20 @@ export class PermissionBroker {
     if (!entry)
       throw new Error("Permission expired or belongs to another session");
     if (entry.submitting) return;
-    // Exact offered choice required for allow; a generic denial may select only
-    // a server-offered once denial. Never infer an allow from button behavior.
+    // An explicit selectedActionId must name an offered choice. Without one
+    // (e.g. `paseo permit allow|deny`), fall back to the server-offered
+    // once-scoped choice matching the behavior. Never widen scope (session,
+    // persistent, policy amendment) or invent a choice Muse did not offer.
     const choice = response.selectedActionId
       ? entry.approval.availableChoices.find(
           (c) => c.choiceId === response.selectedActionId,
         )
-      : response.behavior === "deny"
-        ? entry.approval.availableChoices.find(
-            (c) => c.decision === "denied" && c.scope === "once",
-          )
-        : undefined;
+      : entry.approval.availableChoices.find(
+          (c) =>
+            c.scope === "once" &&
+            c.decision ===
+              (response.behavior === "allow" ? "approved" : "denied"),
+        );
     if (
       !choice ||
       (response.behavior === "allow"
@@ -124,6 +133,46 @@ export class PermissionBroker {
       entry.submitting = false;
       throw error;
     }
+  }
+  /**
+   * Deny every pending approval with Muse's offered once-scoped denial. Used
+   * when a human message supersedes the blocked step (clearPendingPermissions).
+   * Approvals without such a choice are left alone; benign races where Muse
+   * has already resolved or restaged the approval are ignored.
+   */
+  async denyAll(
+    decide: (
+      params: Omit<MSP.ApprovalDecideParams, "commandId" | "sessionId">,
+    ) => Promise<unknown>,
+  ) {
+    let failure: unknown;
+    for (const entry of this.pending.values()) {
+      if (entry.submitting) continue;
+      const choice = entry.approval.availableChoices.find(
+        (c) => c.scope === "once" && c.decision === "denied",
+      );
+      if (!choice) continue;
+      entry.submitting = true;
+      try {
+        await decide({
+          approvalId: entry.approval.approvalId,
+          choiceId: choice.choiceId,
+          requirementId: { ...entry.approval.currentRequirementId },
+          ...(choice.acceptsFeedback
+            ? { feedback: "Superseded by a new user message" }
+            : {}),
+        });
+      } catch (error) {
+        entry.submitting = false;
+        if (
+          error instanceof MspError &&
+          benignDenyRaces.has(String(error.kind))
+        )
+          continue;
+        failure ??= error;
+      }
+    }
+    if (failure !== undefined) throw failure;
   }
   clear() {
     for (const id of this.pending.keys())

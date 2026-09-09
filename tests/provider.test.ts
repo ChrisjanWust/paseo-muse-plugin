@@ -494,6 +494,29 @@ test("native MCP default shows a notice and still permits a strict session overr
   const start = (await h.audit()).find((f) => f.method === "session/start");
   assert(!("mcpServers" in start.params));
 });
+test("approval allow without selectedActionId falls back to the offered once approval", async (t) => {
+  const h = await setup(t);
+  await h.open();
+  const after = h.events.length;
+  await h.prompt("allow-generic", "approval");
+  const permission = await h.wait(
+    (e): e is Extract<ProviderEvent, { type: "session.permission" }> =>
+      e.type === "session.permission",
+    after,
+  );
+  await h.connection.send({
+    type: "session.permission",
+    sessionId: "s",
+    permissionId: permission.request.id,
+    response: { behavior: "allow" },
+  });
+  await h.terminal(after);
+  const decisions = (await h.audit()).filter(
+    (f) => f.method === "approval/decide",
+  );
+  assert.equal(decisions.length, 1);
+  assert.equal(decisions[0].params.choiceId, "allow-once");
+});
 test("turn/retracted settles the turn as canceled and releases its admission slot", async (t) => {
   const h = await setup(t);
   await h.open();
@@ -611,4 +634,80 @@ test("resume settles a turn orphaned by a dead host without a Paseo start and ke
       .slice(after)
       .some((e) => e.type === "session.turn" && e.turnId === slowTurn),
   );
+});
+test("deny with interrupt records the denial and then stops the turn", async (t) => {
+  const h = await setup(t);
+  await h.open();
+  await h.prompt("deny-interrupt", "approval");
+  const permission = await h.wait(
+    (e): e is Extract<ProviderEvent, { type: "session.permission" }> =>
+      e.type === "session.permission",
+  );
+  await h.connection.send({
+    type: "session.permission",
+    sessionId: "s",
+    permissionId: permission.request.id,
+    response: {
+      behavior: "deny",
+      selectedActionId: "deny-once",
+      interrupt: true,
+    },
+  });
+  const terminal = await h.terminal();
+  assert.equal(terminal.state, "canceled");
+  const frames = await h.audit();
+  const decides = frames
+    .map((f, i) => (f.method === "approval/decide" ? i : -1))
+    .filter((i) => i >= 0);
+  const interrupts = frames
+    .map((f, i) => (f.method === "turn/interrupt" ? i : -1))
+    .filter((i) => i >= 0);
+  assert.equal(decides.length, 1);
+  assert.equal(interrupts.length, 1);
+  assert(decides[0] < interrupts[0]);
+});
+test("steer with clearPendingPermissions denies the blocking approval before steering", async (t) => {
+  const h = await setup(t);
+  await h.open();
+  await h.prompt("blocked", "approval");
+  await h.wait(
+    (e): e is Extract<ProviderEvent, { type: "session.permission" }> =>
+      e.type === "session.permission",
+  );
+  const after = h.events.length;
+  await h.connection.send({
+    type: "session.prompt",
+    sessionId: "s",
+    prompt: {
+      clientMessageId: "clear",
+      delivery: "steer",
+      clearPendingPermissions: true,
+      input: {
+        type: "message",
+        content: [{ type: "text", text: "never mind" }],
+      },
+    },
+  });
+  const result = await h.wait(
+    (e): e is Extract<ProviderEvent, { type: "session.prompt_result" }> =>
+      e.type === "session.prompt_result" && e.clientMessageId === "clear",
+    after,
+  );
+  assert.equal(result.result.type, "steer");
+  await h.wait(
+    (e): e is ProviderEvent => e.type === "session.permission_resolved",
+    after,
+  );
+  await h.terminal(after);
+  const frames = await h.audit();
+  const decides = frames
+    .map((f, i) => (f.method === "approval/decide" ? i : -1))
+    .filter((i) => i >= 0);
+  const steers = frames
+    .map((f, i) => (f.method === "turn/steer" ? i : -1))
+    .filter((i) => i >= 0);
+  assert.equal(decides.length, 1);
+  assert.equal(steers.length, 1);
+  assert.equal(frames[decides[0]].params.choiceId, "deny-once");
+  assert(decides[0] < steers[0]);
 });

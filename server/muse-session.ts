@@ -548,6 +548,18 @@ export class MuseSession {
             }
           : {}),
       };
+      // A typed human message answers whatever the agent is blocked on: deny
+      // pending approvals first so they stop blocking the turn being steered.
+      if (prompt.clearPendingPermissions === true)
+        await this.permission.denyAll((params) =>
+          this.io(
+            command(this.host.connection, "approval/decide", {
+              ...params,
+              sessionId: this.native.sessionId,
+            }),
+            "Muse permission",
+          ),
+        );
       let result: { turnId: string };
       if (prompt.delivery === "steer") {
         const active = this.session.fold.activeTurnId;
@@ -650,6 +662,10 @@ export class MuseSession {
         "Muse permission",
       ),
     );
+    // Paseo's deny may also ask to stop the turn. Decide first so Muse
+    // records the denial before the interrupt retracts the turn.
+    if (response.behavior === "deny" && response.interrupt === true)
+      await this.interrupt();
   }
   private async configureNative(changes: ProviderConfigChanges) {
     if (changes.settings && Object.keys(changes.settings).length)
